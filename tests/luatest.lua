@@ -1,5 +1,7 @@
 package.path = string.format("../lua/?.lua;./?.lua;%s",package.path)
 local compat = require("flatbuffers.compat")
+--local dump = require "jit.dump"
+--dump.on("abimsrtx", nil)
 
 local performBenchmarkTests = false
 
@@ -199,6 +201,8 @@ local function fbbClear()
             lastBuf = buf
         else
             -- the output, sized-buffer should be identical
+            print(lastBuf)
+            print(buf)
             assert(lastBuf == buf, "Monster output buffers are not identical")
         end
         monsters[i] = monster.GetRootAsMonster(flatbuffers.binaryArray.New(buf), 0)
