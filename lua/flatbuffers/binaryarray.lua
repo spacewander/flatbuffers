@@ -2,6 +2,7 @@ local compat = require("flatbuffers.compat")
 -- locals for slightly faster access
 local string_pack = compat.string_pack
 local string_unpack = compat.string_unpack
+local ffi = require("ffi")
 
 
 local m = {} -- the module table
@@ -23,7 +24,7 @@ function m.New(sizeOrString)
         o.str = sizeOrString
         o.size = #sizeOrString
     elseif type(sizeOrString) == "number" then
-        o.data = {}
+        o.data = ffi.new("unsigned char[?]", sizeOrString)
         o.size = sizeOrString
     else
         error("Expect a integer size value or string to construct a binary array")
@@ -49,18 +50,24 @@ function mt:Slice(startPos, endPos)
         -- values into the new table to be concat later
         -- updated the startPos based on the size of the
         -- value
-        while startPos < endPos do
-            local v = d[startPos]
-            if not v or v == "" then
-                v = '/0'
-            end
-            table.insert(b, v)
-            startPos = startPos + #v
-        end
+        --while startPos < endPos do
+            --local v = d[startPos]
+            --if not v or v == "" then
+                --v = '/0'
+            --end
+            --table.insert(b, v)
+            --startPos = startPos + #v
+        --end
 
         -- combine the table of strings into one string
         -- this is faster than doing a bunch of concats by themselves
-        return table.concat(b)
+        --return table.concat(b)
+        if startPos then
+            d = d + startPos
+        end
+
+        print(endPos, startPos)
+        return ffi.string(d, endPos - startPos)
     else
         -- n.b start/endPos are 0-based incoming, so need to convert
         --     correctly. in python a slice includes start -> end - 1
@@ -72,19 +79,21 @@ end
 -- at then end of the new array
 function mt:Grow(newsize)
     -- the new table to store the data
-    local newT = {}
+    local newT = ffi.new("unsigned char[?]", newsize)
     
     -- the offset to be applied to existing entries
     local offset = newsize - self.size
+    ffi.copy(newT + offset, self.data, self.size)
     
     -- loop over all the current entries and
     -- add them to the new table at the correct
     -- offset location
-    local d = self.data
-    for i,data in pairs(d) do
-        newT[i + offset] = data
-    end
+    --local d = self.data
+    --for i,data in pairs(d) do
+        --newT[i + offset] = data
+    --end
     
+    --print("Grow", self.size, newsize)
     -- update this storage with the new table and size
     self.data = newT
     self.size = newsize
@@ -105,12 +114,18 @@ function mt:Pad(n, startPos)
     
     -- store the padding string at the start position in the
     -- Lua table
-    self.data[startPos] = s
+    --print("Pad", startPos)
+    --self.data[startPos] = s
+    ffi.copy(self.data + startPos, s, #s)
 end
 
 -- Sets the binary array value at the specified position
 function mt:Set(value, position)
-    self.data[position] = value
+    --self.data[position] = value
+    if not value or value == "" then
+        value = '/0'
+    end
+    ffi.copy(self.data + position, value, #value)
 end
 
 -- Pack the data into a binary representation
